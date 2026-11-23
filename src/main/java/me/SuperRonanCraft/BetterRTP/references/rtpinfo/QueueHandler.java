@@ -14,7 +14,7 @@ import org.bukkit.plugin.PluginManager;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
-import java.util.Random;
+import java.util.concurrent.ThreadLocalRandom;
 
 public class QueueHandler implements Listener { //Randomly queues up some safe locations
 
@@ -39,6 +39,11 @@ public class QueueHandler implements Listener { //Randomly queues up some safe l
         generator.load();
     }
 
+    public void prime(RTPWorld rtpWorld) {
+        if (isEnabled() && !generator.isGenerating())
+            generator.generate(rtpWorld);
+    }
+
     @EventHandler
     public void onRTP(RTP_TeleportPostEvent e) {
         //Delete previously used location
@@ -47,10 +52,10 @@ public class QueueHandler implements Listener { //Randomly queues up some safe l
 
     public static QueueData getRandomAsync(RTPWorld rtpWorld) {
         List<QueueData> queueData = getApplicableAsync(rtpWorld);
-        if (queueData.size() <= QueueGenerator.queueMin && !BetterRTP.getInstance().getQueue().generator.generating)
-            BetterRTP.getInstance().getQueue().generator.generate(rtpWorld);
+        if (queueData.size() < QueueGenerator.queueMin)
+            BetterRTP.getInstance().getQueue().prime(rtpWorld);
         if (!queueData.isEmpty()) {
-            QueueData randomQueue = queueData.get(new Random().nextInt(queueData.size()));
+            QueueData randomQueue = queueData.get(ThreadLocalRandom.current().nextInt(queueData.size()));
             queueData.clear();
             return randomQueue;
         }
@@ -98,10 +103,11 @@ public class QueueHandler implements Listener { //Randomly queues up some safe l
         int center_z = rtpWorld.getCenterZ();
         int radius = rtpWorld.getMaxRadius();
         int radius_min = rtpWorld.getMinRadius();
-        int x = loc.getBlockX();
-        int z = loc.getBlockZ();
-        int square_dist = (center_x - x) * 2 + (center_z - z) * 2;
-        return square_dist <= radius * 2 && square_dist >= radius_min * 2;
+        long x = (long) loc.getBlockX() - center_x;
+        long z = (long) loc.getBlockZ() - center_z;
+        long distanceSquared = x * x + z * z;
+        return distanceSquared <= (long) radius * radius
+                && distanceSquared >= (long) radius_min * radius_min;
     }
 
     public static boolean isInSquare(Location loc, RTPWorld rtpWorld) {

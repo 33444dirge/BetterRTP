@@ -15,7 +15,7 @@ public abstract class SQLite {
 
     private static final String db_file_name = "database";
     List<String> tables;
-    private boolean loaded;
+    private volatile boolean loaded;
 
     public String addMissingColumns = "ALTER TABLE %table% ADD COLUMN %column% %type%";
 

@@ -21,7 +21,7 @@ import me.SuperRonanCraft.BetterRTP.references.rtpinfo.QueueHandler;
 import me.SuperRonanCraft.BetterRTP.references.settings.Settings;
 import me.SuperRonanCraft.BetterRTP.references.web.Metrics;
 import me.SuperRonanCraft.BetterRTP.references.web.Updater;
-import me.SuperRonanCraft.BetterRTP.versions.FoliaHandler;
+import me.SuperRonanCraft.BetterRTP.versions.AsyncHandler;
 import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
@@ -46,11 +46,11 @@ public class BetterRTP extends JavaPlugin {
     @Getter private final WarningHandler warningHandler = new WarningHandler();
     @Getter private boolean PlaceholderAPI;
     @Getter private final RTPLogger rtpLogger = new RTPLogger();
-    @Getter private final FoliaHandler foliaHandler = new FoliaHandler();
 
     @Override
     public void onEnable() {
         instance = this;
+        AsyncHandler.initialize();
         registerDependencies();
         loadAll();
         new Updater(this);
@@ -69,6 +69,9 @@ public class BetterRTP extends JavaPlugin {
         invs.closeAll();
         queue.unload();
         rtpLogger.unload();
+        pInfo.unloadAll();
+        playerDataManager.clear();
+        AsyncHandler.cancelAll();
     }
 
     private void registerDependencies() {
@@ -99,7 +102,6 @@ public class BetterRTP extends JavaPlugin {
 
     //(Re)Load all plugin systems/files/cache
     private void loadAll() {
-        foliaHandler.load();
         playerDataManager.clear();
         files.loadAll();
         settings.load();

@@ -12,7 +12,6 @@ public class Settings {
     @Getter private String rtpOnFirstJoin_World;
     @Getter private boolean rtpOnFirstJoin_SetAsRespawn;
     @Getter private boolean statusMessages; //Send more information about rtp
-    @Getter private int preloadRadius; //Amount of chunks to load around a safe rtp location (clamped (0 - 16))
     //Dependencies
     private final SoftDepends depends = new SoftDepends();
     @Getter private boolean protocolLibSounds;
@@ -46,7 +45,6 @@ public class Settings {
         rtpOnFirstJoin_Enabled = config.getBoolean("Settings.RtpOnFirstJoin.Enabled");
         rtpOnFirstJoin_World = config.getString("Settings.RtpOnFirstJoin.World");
         rtpOnFirstJoin_SetAsRespawn = config.getBoolean("Settings.RtpOnFirstJoin.SetAsRespawn");
-        preloadRadius = config.getInt("Settings.PreloadRadius");
         statusMessages = config.getBoolean("Settings.StatusMessages");
         permissionGroupEnabled = config.getBoolean("PermissionGroup.Enabled");
         queueEnabled = config.getBoolean("Settings.Queue.Enabled");

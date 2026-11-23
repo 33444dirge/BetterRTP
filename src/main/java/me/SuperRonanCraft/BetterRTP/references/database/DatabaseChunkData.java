@@ -1,9 +1,5 @@
 package me.SuperRonanCraft.BetterRTP.references.database;
 
-import me.SuperRonanCraft.BetterRTP.versions.AsyncHandler;
-import org.bukkit.Chunk;
-import org.bukkit.block.Biome;
-
 import java.util.ArrayList;
 import java.util.List;
 
@@ -40,25 +36,22 @@ public class DatabaseChunkData extends SQLite {
     }
 
 
-    public void addChunk(Chunk chunk, int maxy, Biome biome) {
-        AsyncHandler.async(() -> {
-            String pre = "INSERT OR REPLACE INTO ";
-            String sql = pre + tables.get(0) + " ("
-                    + COLUMNS.WORLD.name + ", "
-                    + COLUMNS.X.name + ", "
-                    + COLUMNS.Z.name + ", "
-                    + COLUMNS.BIOME.name + ", "
-                    + COLUMNS.MAX_Y.name + " "
-                    + ") VALUES(?, ?, ?, ?, ?)";
-            List<Object> params = new ArrayList<Object>() {{
-                add(chunk.getWorld().getName());
-                add(chunk.getX());
-                add(chunk.getZ());
-                add(biome.name());
-                add(maxy);
-            }};
-            sqlUpdate(sql, params);
-        });
+    public void addChunk(String worldName, int chunkX, int chunkZ, int maxY, String biomeName) {
+        String pre = "INSERT OR REPLACE INTO ";
+        String sql = pre + tables.get(0) + " ("
+                + COLUMNS.WORLD.name + ", "
+                + COLUMNS.X.name + ", "
+                + COLUMNS.Z.name + ", "
+                + COLUMNS.BIOME.name + ", "
+                + COLUMNS.MAX_Y.name + " "
+                + ") VALUES(?, ?, ?, ?, ?)";
+        List<Object> params = new ArrayList<>();
+        params.add(worldName);
+        params.add(chunkX);
+        params.add(chunkZ);
+        params.add(biomeName);
+        params.add(maxY);
+        sqlUpdate(sql, params);
     }
 
 }

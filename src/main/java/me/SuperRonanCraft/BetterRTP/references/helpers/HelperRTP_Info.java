@@ -19,7 +19,11 @@ public class HelperRTP_Info {
             for (int i = start; i < args.length; i++) {
                 String str = args[i];
                 try {
-                    biomes.add(Biome.valueOf(str.replaceAll(",", "").toUpperCase()).name());
+                    String token = str.replace(",", "").trim();
+                    boolean denied = token.startsWith("!");
+                    String biomeName = denied ? token.substring(1) : token;
+                    String canonical = Biome.valueOf(biomeName.toUpperCase()).getKey().toString();
+                    biomes.add(denied ? "!" + canonical : canonical);
                 } catch (Exception e) {
                     if (!error_sent) {
                         MessagesCore.OTHER_BIOME.send(sendi, str);

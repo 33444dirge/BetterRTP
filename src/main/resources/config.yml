@@ -44,8 +44,6 @@ Settings:
 
   ## Output to console some debugging info
   Debugger: false
-  ## Amount of chunks to preload around a safe location
-  PreloadRadius: 5
   ## Maximum amount of tries before BetterRTP gives up and sends a NotSafeMessage #
   MaxAttempts: 32
   RtpOnFirstJoin: # Will execute as console to override delays
@@ -73,6 +71,8 @@ Settings:
 Default:
   UseWorldBorder: false
   ## "Biomes: []" means all biomes are allowed! #
+  ## Normal entries are an allow-list. Prefix an entry with ! to deny that biome,
+  ## e.g. ["!OCEAN", "!DEEP_OCEAN"]. A list containing only ! entries allows all others. #
   ## Biomes are optional, more biomes at https://hub.spigotmc.org/javadocs/bukkit/org/bukkit/block/Biome.html #
   Biomes: []
   MaxRadius: 1000
@@ -129,7 +129,8 @@ CustomWorlds:
       CenterX: 123
       CenterZ: -123
       Price: 0
-      ## Biomes are optional, but useful! More biomes: https://hub.spigotmc.org/javadocs/bukkit/org/bukkit/block/Biome.html
+      ## Prefix a biome with ! to deny it; with only ! entries all other biomes are allowed.
+      ## More biomes: https://hub.spigotmc.org/javadocs/bukkit/org/bukkit/block/Biome.html
       Biomes:
         - 'desert'
         - 'forest'

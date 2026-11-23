@@ -1,8 +1,11 @@
 package me.SuperRonanCraft.BetterRTP.references.rtpinfo;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 import javax.annotation.Nullable;
 
@@ -26,7 +29,7 @@ public class CooldownHandler {
     @Getter boolean enabled, loaded, cooldownByWorld;
     @Getter private int defaultCooldownTime; //Global Cooldown timer
     private int lockedAfter; //Rtp's before being locked
-    private final List<Player> downloading = new ArrayList<>();
+    private final Set<UUID> downloading = ConcurrentHashMap.newKeySet();
     //private final DatabaseCooldownsGlobal globalCooldown = new DatabaseCooldownsGlobal();
 
     public void load() {
@@ -66,7 +69,7 @@ public class CooldownHandler {
         if (!enabled) return;
         PlayerData playerData = getData(player);
         if (cooldownByWorld) {
-            HashMap<World, CooldownData> cooldowns = playerData.getCooldowns();
+            Map<World, CooldownData> cooldowns = playerData.getCooldowns();
             CooldownData data = cooldowns.getOrDefault(world, new CooldownData(player.getUniqueId(), 0L));
             playerData.setRtpCount(playerData.getRtpCount() + 1);
             data.setTime(System.currentTimeMillis());
@@ -89,7 +92,7 @@ public class CooldownHandler {
     public CooldownData get(Player p, World world) {
         PlayerData data = getData(p);
         if (cooldownByWorld) {
-            HashMap<World, CooldownData> cooldownData = getData(p).getCooldowns();
+            Map<World, CooldownData> cooldownData = getData(p).getCooldowns();
             if (data != null)
                 return cooldownData.getOrDefault(world, null);
         } else if (data.getGlobalCooldown() > 0) {
@@ -119,7 +122,7 @@ public class CooldownHandler {
                 //uses.put(id, uses.getOrDefault(id, 1) - 1);
                 if (playerData.getRtpCount() <= 0) { //Remove from file as well
                     savePlayer(player, world, cooldownData, true);
-                    getData(player).getCooldowns().put(world, null);
+                    getData(player).getCooldowns().remove(world);
                 } else { //Keep the player cached
                     savePlayer(player, world, cooldownData, false);
                 }
@@ -134,6 +137,7 @@ public class CooldownHandler {
     }
 
     private void savePlayer(Player player, @Nullable World world, @Nullable CooldownData data, boolean remove) {
+        PlayerData playerData = getData(player);
         AsyncHandler.async(() -> {
                 if (world != null && data != null && getDatabaseWorlds() != null) { //Per World enabled?
                     if (!remove)
@@ -141,28 +145,32 @@ public class CooldownHandler {
                     else
                         getDatabaseWorlds().removePlayer(data.getUuid(), world);
                 }
-                DatabaseHandler.getPlayers().setData(getData(player));
+                DatabaseHandler.getPlayers().setData(playerData);
             });
     }
 
     public void loadPlayer(Player player) {
         if (!isEnabled()) return;
-        downloading.add(player);
-        PlayerData playerData = getData(player);
-        if (getDatabaseWorlds() != null) //Per World enabled?
-            for (World world : Bukkit.getWorlds()) {
-                //Cooldowns
-                CooldownData cooldown = getDatabaseWorlds().getCooldown(player.getUniqueId(), world);
-                if (cooldown != null)
-                    playerData.getCooldowns().put(world, cooldown);
-            }
-        //Player Data
-        DatabaseHandler.getPlayers().setupData(playerData);
-        downloading.remove(player);
+        UUID playerId = player.getUniqueId();
+        downloading.add(playerId);
+        try {
+            PlayerData playerData = getData(player);
+            if (getDatabaseWorlds() != null) //Per World enabled?
+                for (World world : Bukkit.getWorlds()) {
+                    //Cooldowns
+                    CooldownData cooldown = getDatabaseWorlds().getCooldown(playerId, world);
+                    if (cooldown != null)
+                        playerData.getCooldowns().put(world, cooldown);
+                }
+            //Player Data
+            DatabaseHandler.getPlayers().setupData(playerData);
+        } finally {
+            downloading.remove(playerId);
+        }
     }
 
     public boolean loadedPlayer(Player player) {
-        return !downloading.contains(player);
+        return !downloading.contains(player.getUniqueId());
     }
 
     @Nullable
@@ -204,7 +212,7 @@ public class CooldownHandler {
                 e.printStackTrace();
             }
             BetterRTP.getInstance().getLogger().info("Cooldowns converting to new database...");
-            Bukkit.getScheduler().runTaskAsynchronously(BetterRTP.getInstance(), () -> {
+            AsyncHandler.async(() -> {
                 BetterRTP.getInstance().getDatabaseCooldowns().setCooldown(cooldownData);
                 BetterRTP.getInstance().getLogger().info("Cooldowns have been converted to the new database!");
             });

@@ -1,13 +1,13 @@
 package me.SuperRonanCraft.BetterRTP.player.events;
 
-import com.tcoded.folialib.wrapper.task.WrappedTask;
 import me.SuperRonanCraft.BetterRTP.BetterRTP;
 import me.SuperRonanCraft.BetterRTP.versions.AsyncHandler;
+import me.SuperRonanCraft.BetterRTP.versions.TaskHandle;
 import org.bukkit.event.world.WorldLoadEvent;
 
 public class WorldLoad {
 
-    WrappedTask loader;
+    TaskHandle loader;
 
     void load(WorldLoadEvent e) {
         //BetterRTP.getInstance().getLogger().info("NEW WORLD!");
