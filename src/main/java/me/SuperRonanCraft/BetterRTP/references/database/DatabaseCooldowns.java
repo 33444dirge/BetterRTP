@@ -4,6 +4,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -29,21 +30,26 @@ public class DatabaseCooldowns extends SQLite {
         if (!BetterRTP.getInstance().getCooldowns().isEnabled())
             return list;
 
-        // Get list of disabled worlds and ensure list isn't null
-        List<String> disabledWorlds = BetterRTP.getInstance().getRTP().getDisabledWorlds();
-        if (disabledWorlds == null) disabledWorlds = new ArrayList<>();
+        for (World world : Bukkit.getWorlds()) {
+            if (allowsWorld(world.getName()))
+                list.add(world.getName());
+        }
+        return list;
+    }
 
-        // If there are disabled worlds, iterate through the loaded worlds on the server and
-        // add the world name to the list of table names if they aren't marked as disabled
-        List<World> worlds = Bukkit.getWorlds();
-        if (!disabledWorlds.isEmpty()) {
-            for (World world : worlds) {
-                if (!disabledWorlds.contains(world.getName()))
-                    list.add(world.getName());
+    private boolean allowsWorld(String name) {
+        List<String> disabled = BetterRTP.getInstance().getRTP().getDisabledWorlds();
+        return disabled == null || !disabled.contains(name);
+    }
+
+    private boolean tableExists(Connection conn, String name) throws SQLException {
+        String sql = "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ? COLLATE NOCASE";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, name);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
             }
         }
-
-        return list;
     }
 
     public enum COLUMNS {
@@ -63,60 +69,57 @@ public class DatabaseCooldowns extends SQLite {
     }
 
     public void removePlayer(UUID uuid, World world) {
-        // Create SQL query string with backtick-ed table name to allow for special characters
-        String sql = String.format(
-                "DELETE FROM `%s` WHERE %s = ?",
-                world.getName(),
-                COLUMNS.UUID.name
-        );
-        List<Object> params = new ArrayList<Object>() {{
-            add(uuid.toString());
-        }};
-        sqlUpdate(sql, params);
-    }
-
-    public CooldownData getCooldown(UUID uuid, World world) {
-        Connection conn = null;
-        PreparedStatement ps = null;
-        ResultSet rs = null;
-        try {
-            conn = getSQLConnection();
-            // Create prepared statement with backtick-ed table name to allow for special characters
-            ps = conn.prepareStatement(String.format(
-                    "SELECT * FROM `%s` WHERE %s = ?",
-                    world.getName(),
-                    COLUMNS.UUID.name
-            ));
-            ps.setString(1, uuid.toString());
-
-            rs = ps.executeQuery();
-            if (rs.next()) {
-                Long time = rs.getLong(COLUMNS.COOLDOWN_DATE.name);
-                //int uses = rs.getInt(COLUMNS.USES.name);
-                return new CooldownData(uuid, time);
+        String name = world.getName();
+        if (!allowsWorld(name)) return;
+        try (Connection conn = getSQLConnection()) {
+            if (conn == null || !tableExists(conn, name)) return;
+            String sql = "DELETE FROM " + quoteIdentifier(name) + " WHERE " + COLUMNS.UUID.name + " = ?";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setString(1, uuid.toString());
+                ps.executeUpdate();
             }
         } catch (SQLException ex) {
             BetterRTP.getInstance().getLogger().log(Level.SEVERE, Errors.sqlConnectionExecute(), ex);
-        } finally {
-            close(ps, rs, conn);
+        }
+    }
+
+    public CooldownData getCooldown(UUID uuid, World world) {
+        String name = world.getName();
+        if (!allowsWorld(name)) return null;
+        try (Connection conn = getSQLConnection()) {
+            if (conn == null || !tableExists(conn, name)) return null;
+            String sql = "SELECT " + COLUMNS.COOLDOWN_DATE.name + " FROM " + quoteIdentifier(name)
+                    + " WHERE " + COLUMNS.UUID.name + " = ?";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setString(1, uuid.toString());
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) return new CooldownData(uuid, rs.getLong(1));
+                }
+            }
+        } catch (SQLException ex) {
+            BetterRTP.getInstance().getLogger().log(Level.SEVERE, Errors.sqlConnectionExecute(), ex);
         }
         return null;
     }
 
-    //Set a player Cooldown
     public void setCooldown(World world, CooldownData data) {
-        String pre = "INSERT OR REPLACE INTO ";
-        String sql = pre + world.getName() + " ("
-                + COLUMNS.UUID.name + ", "
-                + COLUMNS.COOLDOWN_DATE.name + " "
-                //+ COLUMNS.USES.name + " "
-                + ") VALUES(?, ?)";
-        List<Object> params = new ArrayList<Object>() {{
-                add(data.getUuid().toString());
-                add(data.getTime());
-                //add(data.getUses());
-        }};
-        sqlUpdate(sql, params);
+        String name = world.getName();
+        if (!allowsWorld(name)) return;
+        try (Connection conn = getSQLConnection()) {
+            if (conn == null) return;
+            try (Statement ddl = conn.createStatement()) {
+                ddl.executeUpdate(getCreateTable(name));
+            }
+            String sql = "INSERT OR REPLACE INTO " + quoteIdentifier(name) + " ("
+                    + COLUMNS.UUID.name + ", " + COLUMNS.COOLDOWN_DATE.name + ") VALUES (?, ?)";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setString(1, data.getUuid().toString());
+                ps.setLong(2, data.getTime());
+                ps.executeUpdate();
+            }
+        } catch (SQLException ex) {
+            BetterRTP.getInstance().getLogger().log(Level.SEVERE, Errors.sqlConnectionExecute(), ex);
+        }
     }
 
     //Update multiple players cooldowns

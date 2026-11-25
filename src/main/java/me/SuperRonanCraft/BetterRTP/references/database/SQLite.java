@@ -76,7 +76,7 @@ public abstract class SQLite {
                             String _name = getColumnName(type, c);
                             String _type = getColumnType(type, c);
                             //System.out.println("Adding " + _name);
-                            s.executeUpdate(addMissingColumns.replace("%table%", table).replace("%column%", _name).replace("%type%", _type));
+                            s.executeUpdate(addMissingColumns.replace("%table%", quoteIdentifier(table)).replace("%column%", _name).replace("%type%", _type));
                         } catch (SQLException e) {
                             //e.printStackTrace();
                         }
@@ -100,8 +100,12 @@ public abstract class SQLite {
         });
     }
 
-    private String getCreateTable(String table) {
-        String str = "CREATE TABLE IF NOT EXISTS `" + table + "` (";
+    static String quoteIdentifier(String name) {
+        return "\"" + name.replace("\"", "\"\"") + "\"";
+    }
+
+    protected final String getCreateTable(String table) {
+        String str = "CREATE TABLE IF NOT EXISTS " + quoteIdentifier(table) + " (";
         Enum<?>[] columns = getColumns(type);
         for (Enum<?> c : columns) {
             String _name = getColumnName(type, c);
@@ -211,7 +215,7 @@ public abstract class SQLite {
         ResultSet rs = null;
         try {
             conn = getSQLConnection();
-            ps = conn.prepareStatement("SELECT * FROM " + tables.get(0) + " WHERE " + getColumnName(type, getColumns(type)[0]) + " = 0");
+            ps = conn.prepareStatement("SELECT * FROM " + quoteIdentifier(tables.get(0)) + " WHERE " + getColumnName(type, getColumns(type)[0]) + " = 0");
 
             rs = ps.executeQuery();
         } catch (SQLException ex) {
